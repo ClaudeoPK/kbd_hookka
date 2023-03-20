@@ -9,7 +9,7 @@
 
 ## 0x1 Process
   Find KeybardClassServiceCallback by using AOB pattern.
-  Place inline hook to entry of KeybardClassServiceCallback.
+  Place inline hook to entry of KeyboardClassServiceCallback.
 
 ## 0x2 ToDO
   Add getDriverObject(PVOID ReturnAddress)
