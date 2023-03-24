@@ -42,27 +42,35 @@ PVOID FindPatternImage(PCHAR base, PCHAR pattern, PCHAR mask) {
 	}
 	return match;
 }
-PVOID GetBaseAddress(IN PCHAR pModuleName, OUT PULONG pSize) {
-	PVOID pModuleBase = NULL;
+PSYSTEM_MODULE_INFORMATION GetSystemModuleInformation() {
 	ULONG szModule = 0;
 	NTSTATUS status = ZwQuerySystemInformation(SystemModuleInformation, 0, 0, &szModule);
 	if (STATUS_INFO_LENGTH_MISMATCH != status) {
 		DEBUG_OUTPUT("ZwQuerySystemInformation for size failed: %p !\n", status);
-		return pModuleBase;
+		return NULL;
 	}
-
+	DEBUG_OUTPUT("ZwQuerySystemInformation size: %d\n", szModule);
 	PSYSTEM_MODULE_INFORMATION pBuffer = ExAllocatePool(NonPagedPool, szModule);
 	if (!pBuffer) {
 		DEBUG_OUTPUT("Failed to allocate %d bytes for modules !\n", szModule);
-		return pModuleBase;
+		return NULL;
 	}
 
 	if (!NT_SUCCESS(status = ZwQuerySystemInformation(SystemModuleInformation, pBuffer, szModule, 0))) {
 		ExFreePool(pBuffer);
 		DEBUG_OUTPUT("ZwQuerySystemInformation failed: %p !\n", status);
+		return NULL;
+	}
+	return pBuffer;
+}
+PVOID GetBaseAddress(IN PCHAR pModuleName, OUT PULONG pSize) {
+	PVOID pModuleBase = NULL;
+	PSYSTEM_MODULE_INFORMATION pBuffer = GetSystemModuleInformation();
+	if (!pBuffer) {
+		DEBUG_OUTPUT("GetSystemModuleInformation failed.\n");
 		return pModuleBase;
 	}
-	for (ULONG i = 0; i < pBuffer->NumberOfModules; i++) {
+	for (int i = 0; i < pBuffer->NumberOfModules; i++) {
 		if (strstr(LowerStr((PCHAR)pBuffer->Modules[i].FullPathName), pModuleName)) {
 			pModuleBase = pBuffer->Modules[i].ImageBase;
 			if (pSize) {
@@ -73,4 +81,18 @@ PVOID GetBaseAddress(IN PCHAR pModuleName, OUT PULONG pSize) {
 	}
 	ExFreePool(pBuffer);
 	return pModuleBase;
+}
+
+NTSTATUS GetModuleFullPathNameByRegion(IN PSYSTEM_MODULE_INFORMATION pSystemModuleInformations, IN PVOID Address, OUT CHAR* oBuffer) {
+	if (!pSystemModuleInformations || !Address) {
+		return STATUS_UNSUCCESSFUL;
+	}
+	for (int i = 0; i < pSystemModuleInformations->NumberOfModules; i++) {
+		if (Address > (ULONG64)pSystemModuleInformations->Modules[i].ImageBase &&
+			Address < (ULONG64)pSystemModuleInformations->Modules[i].ImageBase + pSystemModuleInformations->Modules[i].ImageSize) {
+			strcpy(oBuffer, pSystemModuleInformations->Modules[i].FullPathName);
+			return STATUS_SUCCESS;
+		}
+	}
+	return STATUS_UNSUCCESSFUL;
 }
