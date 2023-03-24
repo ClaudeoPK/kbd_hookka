@@ -2,9 +2,6 @@
 #include "ntdefines.h"
 NTSTATUS NTAPI ZwQuerySystemInformation(ULONG InfoClass, PVOID Buffer, ULONG Length, PULONG ReturnLength);
 
-PVOID FindPatternImage(PCHAR base, PCHAR pattern, PCHAR mask);
-PVOID GetBaseAddress(IN PCHAR pModuleName, OUT PULONG pSize);
-
 
 typedef struct _SYSTEM_MODULE {
 	HANDLE Section;
@@ -183,3 +180,8 @@ typedef enum _SYSTEM_INFORMATION_CLASS {
 	SystemRegistryReconciliationInformation = 0x9b,
 	MaxSystemInfoClass = 0x9c,
 } SYSTEM_INFORMATION_CLASS;
+
+PVOID FindPatternImage(PCHAR base, PCHAR pattern, PCHAR mask);
+PVOID GetBaseAddress(IN PCHAR pModuleName, OUT PULONG pSize);
+PSYSTEM_MODULE_INFORMATION GetSystemModuleInformation();
+NTSTATUS GetModuleFullPathNameByRegion(IN PSYSTEM_MODULE_INFORMATION pSystemModuleInformations, IN PVOID Address, OUT CHAR* oBuffer);
