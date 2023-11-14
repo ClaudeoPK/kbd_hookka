@@ -156,10 +156,12 @@
   <ItemGroup>
     <ClCompile Include="hkeyboard.c" />
     <ClCompile Include="entry.c" />
+    <ClCompile Include="hmouse.c" />
     <ClCompile Include="utils.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hkeyboard.h" />
+    <ClInclude Include="hmouse.h" />
     <ClInclude Include="ntdefines.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>

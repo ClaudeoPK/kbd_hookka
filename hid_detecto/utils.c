@@ -1,6 +1,9 @@
 #include "utils.h"
 #include <ntimage.h>
 #include <windef.h>
+
+PSYSTEM_MODULE_INFORMATION pSystemModuleTable = NULL;
+
 PCHAR LowerStr(PCHAR str) {
 	for (PCHAR s = str; *s; ++s) {
 		*s = (CHAR)tolower(*s);
@@ -42,27 +45,59 @@ PVOID FindPatternImage(PCHAR base, PCHAR pattern, PCHAR mask) {
 	}
 	return match;
 }
-PSYSTEM_MODULE_INFORMATION GetSystemModuleInformation() {
-	ULONG szModule = 0;
-	NTSTATUS status = ZwQuerySystemInformation(SystemModuleInformation, 0, 0, &szModule);
-	if (STATUS_INFO_LENGTH_MISMATCH != status) {
-		DEBUG_OUTPUT("ZwQuerySystemInformation for size failed: %p !\n", status);
-		return NULL;
-	}
-	DEBUG_OUTPUT("ZwQuerySystemInformation size: %d\n", szModule);
-	PSYSTEM_MODULE_INFORMATION pBuffer = ExAllocatePool(NonPagedPool, szModule);
-	if (!pBuffer) {
-		DEBUG_OUTPUT("Failed to allocate %d bytes for modules !\n", szModule);
-		return NULL;
-	}
 
-	if (!NT_SUCCESS(status = ZwQuerySystemInformation(SystemModuleInformation, pBuffer, szModule, 0))) {
-		ExFreePool(pBuffer);
-		DEBUG_OUTPUT("ZwQuerySystemInformation failed: %p !\n", status);
-		return NULL;
+NTSTATUS InitializeSystemModuleTable() {
+	if (pSystemModuleTable) {
+		PSYSTEM_MODULE_INFORMATION newTable = GetSystemModuleInformation();
+		if (newTable) {
+			PSYSTEM_MODULE_INFORMATION oldTable = pSystemModuleTable;
+			pSystemModuleTable = newTable;
+			ExFreePool(oldTable);
+			return STATUS_SUCCESS;
+		}
+		else {
+			DEBUG_OUTPUT("Failed to initialize system module table.\n");
+			return STATUS_UNSUCCESSFUL;
+		}
 	}
-	return pBuffer;
+	pSystemModuleTable = GetSystemModuleInformation();
+	return STATUS_SUCCESS;
 }
+PSYSTEM_MODULE_INFORMATION GetSystemModuleTable() {
+	return pSystemModuleTable;
+}
+NTSTATUS FreeSystemModuleTable() {
+	if (pSystemModuleTable) {
+		ExFreePool(pSystemModuleTable);
+		pSystemModuleTable = NULL;
+	}
+	return STATUS_SUCCESS;
+}
+PSYSTEM_MODULE_INFORMATION GetSystemModuleInformation() {
+	if (KeGetCurrentIrql() <= DISPATCH_LEVEL) {
+		ULONG szModule = 0;
+		NTSTATUS status = ZwQuerySystemInformation(SystemModuleInformation, 0, 0, &szModule);
+		if (STATUS_INFO_LENGTH_MISMATCH != status) {
+			DEBUG_OUTPUT("ZwQuerySystemInformation for size failed: %p !\n", status);
+			return NULL;
+		}
+		DEBUG_OUTPUT("ZwQuerySystemInformation size: %d\n", szModule);
+		PSYSTEM_MODULE_INFORMATION pBuffer = ExAllocatePool(NonPagedPool, szModule);
+		if (!pBuffer) {
+			DEBUG_OUTPUT("Failed to allocate %d bytes for modules !\n", szModule);
+			return NULL;
+		}
+
+		if (!NT_SUCCESS(status = ZwQuerySystemInformation(SystemModuleInformation, pBuffer, szModule, 0))) {
+			ExFreePool(pBuffer);
+			DEBUG_OUTPUT("ZwQuerySystemInformation failed: %p !\n", status);
+			return NULL;
+		}
+		return pBuffer;
+	}
+	return NULL;
+}
+
 PVOID GetBaseAddress(IN PCHAR pModuleName, OUT PULONG pSize) {
 	PVOID pModuleBase = NULL;
 	PSYSTEM_MODULE_INFORMATION pBuffer = GetSystemModuleInformation();

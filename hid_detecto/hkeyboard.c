@@ -2,11 +2,11 @@
 #include "utils.h"
 fnKeyboardClassServiceCallback pKeyboardClassServiceCallback = NULL;
 fnKeyboardClassServiceCallback hkBridgeKeyboardClassServiceCallback = NULL;
-PSYSTEM_MODULE_INFORMATION pSystemModuleInformations = NULL;
+
 unsigned char OrigOpcodes[12];
 void __fastcall hkKeyboardClassServiceCallback(PDEVICE_OBJECT DeviceObject, PKEYBOARD_INPUT_DATA InputDataStart, PKEYBOARD_INPUT_DATA InputDataEnd, PULONG InputDataConsumed) {
 	CHAR buffer[256];
-	NTSTATUS status = GetModuleFullPathNameByRegion(pSystemModuleInformations, _ReturnAddress(), buffer);
+	NTSTATUS status = GetModuleFullPathNameByRegion(GetSystemModuleTable(), _ReturnAddress(), buffer);
 	for (int i = 0; i < (InputDataEnd - InputDataStart); i++) {
 		if (NT_SUCCESS(status)) {
 			DEBUG_OUTPUT("Caller:%s Scancode : %d,key %s\n", buffer, (InputDataStart + i * sizeof(KEYBOARD_INPUT_DATA))->MakeCode, (InputDataStart + i * sizeof(KEYBOARD_INPUT_DATA))->Flags ? "Up" : "Down");
@@ -14,7 +14,6 @@ void __fastcall hkKeyboardClassServiceCallback(PDEVICE_OBJECT DeviceObject, PKEY
 		else {
 			DEBUG_OUTPUT("ReturnAddress:%p Scancode : %d,key %s\n", _ReturnAddress(), (InputDataStart + i * sizeof(KEYBOARD_INPUT_DATA))->MakeCode, (InputDataStart + i * sizeof(KEYBOARD_INPUT_DATA))->Flags ? "Up" : "Down");
 		}
-		
 	}
 	return hkBridgeKeyboardClassServiceCallback(DeviceObject, InputDataStart, InputDataEnd, InputDataConsumed);
 }
@@ -62,7 +61,7 @@ NTSTATUS installKeyboardHook() {
 					}
 				}
 				if (bFound) {
-					pSystemModuleInformations = GetSystemModuleInformation();
+					GetSystemModuleInformation();
 					unsigned char JumpOrig[] = { 0x48, 0xB8, 0x00,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00, /* mov rax, hkFunctionAddress*/
 											0xFF, 0xE0 /* jmp rax */ };
 					hkBridgeKeyboardClassServiceCallback = ExAllocatePool(NonPagedPool, 1024);
@@ -90,10 +89,6 @@ NTSTATUS installKeyboardHook() {
 	return STATUS_UNSUCCESSFUL;
 }
 NTSTATUS uninstallKeyboardHook() {
-	if (pSystemModuleInformations) {
-		ExFreePool(pSystemModuleInformations);
-		pSystemModuleInformations = NULL;
-	}
 	if (pKeyboardClassServiceCallback && hkBridgeKeyboardClassServiceCallback) {
 		PHYSICAL_ADDRESS PAKeyboardClassServiceCallback = MmGetPhysicalAddress(pKeyboardClassServiceCallback);
 		if (PAKeyboardClassServiceCallback.QuadPart)

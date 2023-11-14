@@ -185,3 +185,6 @@ PVOID FindPatternImage(PCHAR base, PCHAR pattern, PCHAR mask);
 PVOID GetBaseAddress(IN PCHAR pModuleName, OUT PULONG pSize);
 PSYSTEM_MODULE_INFORMATION GetSystemModuleInformation();
 NTSTATUS GetModuleFullPathNameByRegion(IN PSYSTEM_MODULE_INFORMATION pSystemModuleInformations, IN PVOID Address, OUT CHAR* oBuffer);
+NTSTATUS InitializeSystemModuleTable();
+NTSTATUS FreeSystemModuleTable();
+PSYSTEM_MODULE_INFORMATION GetSystemModuleTable();
